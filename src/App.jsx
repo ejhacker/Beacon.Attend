@@ -184,6 +184,9 @@ export default function App() {
     reader.onload = async () => {
       try {
         const parsed = await parseTimetableImage(reader.result, role);
+        if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
+          throw new Error("No timetable data found in image");
+        }
         if (role === "MENTOR") {
           const section = prompt("Enter section (e.g. AIML-1A, CSE-2B):") || "AIML-1A";
           const sessions = parsed.map(p => ({
@@ -206,7 +209,20 @@ export default function App() {
           showToast(`Uploaded ${sessions.length} class(es). ${matched} matched with class timetable.`, "success");
         }
       } catch (e) {
-        showToast("Failed to parse timetable. Try a clearer image.", "error");
+        console.error("Timetable parsing error:", e);
+        let errorMsg = "Failed to parse timetable. Try a clearer image.";
+        if (e.message) {
+          if (e.message.includes("API key") || e.message.includes("401") || e.message.includes("403")) {
+            errorMsg = "API key missing or invalid. Check environment variables.";
+          } else if (e.message.includes("Network") || e.message.includes("fetch")) {
+            errorMsg = "Network error. Check your connection and try again.";
+          } else if (e.message.includes("parse") || e.message.includes("JSON")) {
+            errorMsg = "Could not extract timetable data. Try a clearer, well-lit image.";
+          } else {
+            errorMsg = e.message.length > 60 ? e.message.substring(0, 60) + "..." : e.message;
+          }
+        }
+        showToast(errorMsg, "error");
       }
       setProcessing(false);
     };

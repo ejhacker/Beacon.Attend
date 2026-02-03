@@ -11,14 +11,32 @@ const MODEL  = 'gemini-1.5-flash';
 const URL    = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent?key=' + API_KEY;
 
 export async function parseTimetableImage(base64DataURL) {
+  // Debug: Check if API key is available
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+  console.log('Gemini API Key check:', envKey ? 'Present (length: ' + envKey.length + ')' : 'MISSING');
+  
   if (!API_KEY) {
     console.warn('No Gemini API key – returning mock timetable.');
+    console.warn('Set VITE_GEMINI_API_KEY in your environment variables.');
     await new Promise(r => setTimeout(r, 1800));
     return mockData();
   }
 
+  if (!base64DataURL) {
+    throw new Error('No image data provided');
+  }
+
   const base64  = base64DataURL.includes(',') ? base64DataURL.split(',')[1] : base64DataURL;
-  const mime    = base64DataURL.includes('png') ? 'image/png' : 'image/jpeg';
+  const mime    = base64DataURL.includes('png') ? 'image/png' : base64DataURL.includes('jpeg') || base64DataURL.includes('jpg') ? 'image/jpeg' : 'image/jpeg';
+  
+  // Check image size (Gemini has limits)
+  const sizeInBytes = (base64.length * 3) / 4;
+  const sizeInMB = sizeInBytes / (1024 * 1024);
+  console.log('Image size:', sizeInMB.toFixed(2), 'MB');
+  
+  if (sizeInMB > 20) {
+    throw new Error('Image too large. Please use an image smaller than 20MB.');
+  }
 
   const body = {
     contents: [{
